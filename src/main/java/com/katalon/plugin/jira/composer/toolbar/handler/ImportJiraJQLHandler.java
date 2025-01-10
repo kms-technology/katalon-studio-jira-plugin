@@ -1,26 +1,5 @@
 package com.katalon.plugin.jira.composer.toolbar.handler;
 
-import java.io.IOException;
-import java.net.URI;
-import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.text.StringEscapeUtils;
-import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.Status;
-import org.eclipse.core.runtime.jobs.Job;
-import org.eclipse.jface.dialogs.MessageDialog;
-import org.eclipse.swt.widgets.Shell;
-import org.joda.time.DateTimeZone;
-import org.joda.time.tz.UTCProvider;
-
 import com.atlassian.jira.rest.client.api.JiraRestClient;
 import com.atlassian.jira.rest.client.api.JiraRestClientFactory;
 import com.atlassian.jira.rest.client.api.domain.Field;
@@ -47,13 +26,30 @@ import com.katalon.plugin.jira.core.JiraCredential;
 import com.katalon.plugin.jira.core.JiraIntegrationAuthenticationHandler;
 import com.katalon.plugin.jira.core.JiraIntegrationException;
 import com.katalon.plugin.jira.core.JiraObjectToEntityConverter;
-import com.katalon.plugin.jira.core.entity.ImprovedIssue;
-import com.katalon.plugin.jira.core.entity.JiraField;
 import com.katalon.plugin.jira.core.entity.JiraFilter;
 import com.katalon.plugin.jira.core.entity.JiraIssue;
+import com.katalon.plugin.jira.core.issue.NewTestCaseIssueDescription;
 import com.katalon.plugin.jira.core.setting.JiraIntegrationSettingStore;
-import com.katalon.plugin.jira.core.setting.StoredJiraObject;
 import com.katalon.plugin.jira.core.util.PlatformUtil;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.text.StringEscapeUtils;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.swt.widgets.Shell;
+import org.joda.time.DateTimeZone;
+import org.joda.time.tz.UTCProvider;
+
+import java.io.IOException;
+import java.net.URI;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 public class ImportJiraJQLHandler implements JiraUIComponent {
     
@@ -99,7 +95,9 @@ public class ImportJiraJQLHandler implements JiraUIComponent {
                 try {
                     monitor.setTaskName(ComposerJiraIntegrationMessageConstant.JOB_SUB_TASK_FETCHING_KATALON_FIELD);
                     JiraCredential credential = getCredential();
-                    Optional<Field> katalonCommentField = getKatalonCommentField(credential);
+                    JiraIntegrationSettingStore settingStore = getSettingStore();
+                    JiraIntegrationAuthenticationHandler authenticationHandler = new JiraIntegrationAuthenticationHandler();
+                    Optional<Field> katalonCommentField = authenticationHandler.getKatalonCommentField(credential, settingStore);
                     monitor.worked(1);
                     List<TestCaseEntity> testCases = new ArrayList<>();
 
@@ -113,6 +111,7 @@ public class ImportJiraJQLHandler implements JiraUIComponent {
                         if (monitor.isCanceled()) {
                             return Status.CANCEL_STATUS;
                         }
+
                         String testCaseName = StringUtils
                                 .defaultString(issue.getKey() + " " + issue.getFields().getSummary());
                         testCaseName = truncateName(folder, testCaseName);
@@ -120,15 +119,23 @@ public class ImportJiraJQLHandler implements JiraUIComponent {
                                 testCaseName);
                         monitor.setTaskName(MessageFormat.format(
                                 ComposerJiraIntegrationMessageConstant.JOB_SUB_TASK_IMPORTING_ISSUE, newTestCaseName));
-                        String description = getDescriptionFromIssue(issue);
-                        String katalonCustomFieldValue = getComment(katalonCommentField, issue);
-                        TestCaseEntity testCase = testCaseController.newTestCase(currentProject, folder,
-                                new NewTestCaseIssueDescription(newTestCaseName, description, katalonCustomFieldValue));
+                        NewTestCaseIssueDescription newDescription = NewTestCaseIssueDescription.Builder.create()
+                                .setTestCaseName(newTestCaseName)
+                                .setIssue(issue)
+                                .setJiraCredential(credential)
+                                .setSettingStore(settingStore)
+                                .setKatalonCommentField(katalonCommentField)
+                                .build();
+                        String katalonCustomFieldValue = newDescription.getComment();
+                        newDescription.isKatalonCommentFieldPresentInJiraIssue().ifPresent(presentInJiraCloud -> {
+                            if (!presentInJiraCloud) {
+                                ableToGetCustomFieldContentFromJiraCloud = false;
+                            }
+                        });
 
-                        testCase = JiraObjectToEntityConverter.updateTestCase(issue, testCase);
-
+                        TestCaseEntity testCase = testCaseController.newTestCase(currentProject, folder, newDescription);
+                        testCase = JiraObjectToEntityConverter.updateTestCaseJiraIssueLink(issue, testCase);
                         String testCaseScript = getScriptForComment(katalonCustomFieldValue);
-                        
                         if (result.isLinkToBddFeatureFile()) {
                             FeatureFileController featureController = PlatformUtil
                                     .getPlatformController(FeatureFileController.class);
@@ -139,7 +146,6 @@ public class ImportJiraJQLHandler implements JiraUIComponent {
                             SystemFileEntity systemFile = featureController.newFeatureFile(currentProject,
                                     featureFolder, featureFileName);
                             FileUtils.write(systemFile.getFile(), katalonCustomFieldValue);
-
                             testCaseScript = getScriptForFeatureFile(systemFile);
                         }
 
@@ -147,16 +153,14 @@ public class ImportJiraJQLHandler implements JiraUIComponent {
                         testCases.add(testCase);
                         monitor.worked(1);
                     }
-                    if (!ableToGetCustomFieldContentFromJiraCloud && result.isLinkToBddFeatureFile()) {
-                        String serverUrl = credential.getServerUrl();
-                        boolean isJiraCloud = serverUrl.contains(".atlassian.net") || serverUrl.contains(".jira.com");
-                        if (isJiraCloud) {
-                            PlatformUtil.getUIService(UISynchronizeService.class).syncExec(() -> {
-                                MessageDialog.openError(null, StringConstants.ERROR,
-                                        ComposerJiraIntegrationMessageConstant.ERROR_CUSTOM_FIELD_NOT_FOUND);
-                            });
-                        }
+
+                    if (!ableToGetCustomFieldContentFromJiraCloud && result.isLinkToBddFeatureFile() && credential.isJiraCloud()) {
+                        PlatformUtil.getUIService(UISynchronizeService.class).syncExec(() -> {
+                            MessageDialog.openError(null, StringConstants.ERROR,
+                                    ComposerJiraIntegrationMessageConstant.ERROR_CUSTOM_FIELD_NOT_FOUND);
+                        });
                     }
+
                     TestExplorerActionService explorerActionService = PlatformUtil
                             .getUIService(TestExplorerActionService.class);
                     explorerActionService.refreshFolder(currentProject, folder);
@@ -187,41 +191,6 @@ public class ImportJiraJQLHandler implements JiraUIComponent {
                 return truncatedName.trim();
             }
 
-            private Optional<Field> getKatalonCommentField(JiraCredential jiraCredential) throws IOException {
-                try {
-                    String serverUrl = jiraCredential.getServerUrl();
-                    boolean isJiraCloud = serverUrl.contains(".atlassian.net") || serverUrl.contains(".jira.com");
-                    if (isJiraCloud) {
-                        JiraIntegrationSettingStore settingStore = getSettingStore();
-                        if (settingStore.isEnableFetchingContentFromJiraCloud()) {
-                            StoredJiraObject<JiraField> customField = settingStore.getStoredJiraCloudField();
-                            return Optional.ofNullable(customField.getDefaultJiraObject());
-                        }
-                    }
-                    return new JiraIntegrationAuthenticationHandler().getKatalonJiraServerCustomField(jiraCredential);
-                } catch (JiraIntegrationException exception) {
-                    return Optional.empty();
-                }
-            }
-
-            private String getComment(Optional<Field> katalonField, JiraIssue issue) {
-                if (!katalonField.isPresent()) {
-                    return StringUtils.EMPTY;
-                }
-                ImprovedIssue fields = issue.getFields();
-                if (fields == null) {
-                    return StringUtils.EMPTY;
-                }
-                Map<String, Object> customFields = fields.getCustomFields();
-                String customFieldId = katalonField.get().getId();
-                if (!customFields.containsKey(customFieldId)) {
-                    ableToGetCustomFieldContentFromJiraCloud = false;
-                    return StringUtils.EMPTY;
-                }
-                Object jsonComment = customFields.get(customFieldId);
-                return jsonComment != null ? jsonComment.toString() : StringUtils.EMPTY;
-            }
-
             private String getScriptForFeatureFile(SystemFileEntity systemFile) {
                 return String.format("CucumberKW.runFeatureFile('%s')\n", systemFile.getId());
             }
@@ -234,52 +203,8 @@ public class ImportJiraJQLHandler implements JiraUIComponent {
                 });
                 return commentBuilder.toString();
             }
-
-            private String getDescriptionFromIssue(JiraIssue issue) {
-                return String.format("%s: %s\n%s: %s", StringConstants.SUMMARY,
-                        StringUtils.defaultString(issue.getFields().getSummary()), StringConstants.DESCRIPTION,
-                        StringUtils.defaultString(issue.getFields().getDescription()));
-            }
-
         };
         job.setUser(true);
         job.schedule();
-    }
-
-    private static class NewTestCaseIssueDescription implements TestCaseController.NewDescription {
-        private final String name;
-
-        private final String description;
-
-        private final String comment;
-
-        private final static String JIRA_INTEGRATION_TAG = "jira-integration";
-
-        public NewTestCaseIssueDescription(String name, String description, String comment) {
-            this.name = name;
-            this.description = description;
-            this.comment = comment;
-        }
-
-        @Override
-        public String getName() {
-            return name;
-        }
-
-        @Override
-        public String getDescription() {
-            return description;
-        }
-
-        @Override
-        public String getComment() {
-            return comment;
-        }
-
-        @Override
-        public String getTag() {
-            return JIRA_INTEGRATION_TAG;
-        }
-
     }
 }

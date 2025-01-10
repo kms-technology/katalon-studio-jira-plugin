@@ -1,5 +1,7 @@
 package com.katalon.plugin.jira.core;
 
+import org.apache.commons.lang3.StringUtils;
+
 public class JiraCredential {
     private String serverUrl;
 
@@ -29,5 +31,13 @@ public class JiraCredential {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public boolean isJiraCloud() {
+        if (StringUtils.isEmpty(serverUrl)) {
+            throw new IllegalStateException("The server URL is empty");
+        }
+
+        return serverUrl.contains(".atlassian.net") || serverUrl.contains(".jira.com");
     }
 }

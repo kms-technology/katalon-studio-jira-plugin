@@ -1,28 +1,5 @@
 package com.katalon.plugin.jira.core.setting;
 
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_AUTH_ENCRYPTION_ENABLED;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_AUTH_PASSWORD;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_AUTH_SERVER_URL;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_AUTH_USER;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_AUTH_USERNAME;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_AUTH_ENCRYPTION_MIGRATED;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_INTEGRATION_ENABLED;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_SUBMIT_ATTACH_LOG;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_SUBMIT_ATTACH_SCREENSHOT;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_SUBMIT_JIRA_ISSUE_TYPE;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_SUBMIT_JIRA_PROJECT;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_SUBMIT_JIRA_CLOUD_FIELD;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_SUBMIT_TEST_RESULT_AUTOMATICALLY;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_SUBMIT_USE_TEST_CASE_NAME_AS_SUMMARY;
-import static com.katalon.plugin.jira.core.constant.StringConstants.MIGRATE_PROJECT_SCOPE;
-import static com.katalon.plugin.jira.core.constant.StringConstants.PREF_SUBMIT_FETCH_JIRA_CLOUD_CONTENT;
-
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.security.GeneralSecurityException;
-
-import org.apache.commons.lang3.StringUtils;
-
 import com.atlassian.jira.rest.client.api.domain.User;
 import com.google.gson.reflect.TypeToken;
 import com.katalon.platform.api.exception.CryptoException;
@@ -35,6 +12,13 @@ import com.katalon.plugin.jira.core.entity.JiraField;
 import com.katalon.plugin.jira.core.entity.JiraIssueType;
 import com.katalon.plugin.jira.core.entity.JiraProject;
 import com.katalon.plugin.jira.core.util.JsonUtil;
+import org.apache.commons.lang3.StringUtils;
+
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.security.GeneralSecurityException;
+
+import static com.katalon.plugin.jira.core.constant.StringConstants.*;
 
 public class JiraIntegrationSettingStore {
 
@@ -50,6 +34,14 @@ public class JiraIntegrationSettingStore {
 
     public void enableIntegration(boolean enabled) throws IOException {
         delegate.setBoolean(PREF_INTEGRATION_ENABLED, enabled);
+    }
+
+    public boolean getTestCaseDescriptionJiraIssueOverridden() {
+        return delegate.getBoolean(PREF_TEST_CASE_DESCRIPTION_JIRA_ISSUE_OVERRIDDEN, false);
+    }
+
+    public void setTestCaseDescriptionJiraIssueOverridden(boolean overridden) {
+        delegate.setBoolean(PREF_TEST_CASE_DESCRIPTION_JIRA_ISSUE_OVERRIDDEN, overridden);
     }
 
     public String getUsername(boolean encryptionEnabled) throws IOException, GeneralSecurityException {

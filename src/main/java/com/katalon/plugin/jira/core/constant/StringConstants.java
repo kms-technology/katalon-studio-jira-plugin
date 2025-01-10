@@ -39,6 +39,8 @@ public class StringConstants {
 
     public static final String PREF_INTEGRATION_ENABLED = "integration.enabled";
 
+    public static final String PREF_TEST_CASE_DESCRIPTION_JIRA_ISSUE_OVERRIDDEN = "integration.testCaseDescriptionJiraIssueOverridden";
+
     public static final String INTEGRATED_VALUE_NAME = "integratedValue";
 
     public static final String HREF_DASHBOARD = "/secure/Dashboard.jspa";
@@ -61,5 +63,6 @@ public class StringConstants {
     
     public static final String HREF_DEFAULT_DASHBOARD = "/jira/dashboards/last-visited";
 
+    // The ID of custom field in JIRA created by https://marketplace.atlassian.com/apps/1217501/katalon-test-automation-for-jira?hosting=cloud&tab=overview
     public static final String KATALON_CUSTOM_FIELD_ID = "com.katalon.katalon-jira-plugin:com.katalon.jiraplugin.gherkin";
 }

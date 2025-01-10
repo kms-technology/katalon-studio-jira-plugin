@@ -12,7 +12,7 @@
 
 	<groupId>com.katalon</groupId>
 	<artifactId>katalon-studio-jira-plugin</artifactId>
-	<version>1.0.25</version>
+	<version>1.0.26</version>
 
 	<packaging>bundle</packaging>
 
@@ -159,12 +159,18 @@
 					<instructions>
 						<Bundle-SymbolicName>${project.groupId}.${project.artifactId};singleton:=true</Bundle-SymbolicName>
 						<Bundle-Version>${project.version}</Bundle-Version>
-						<Import-Package></Import-Package>
-						<DynamicImport-Package>*</DynamicImport-Package>
-						<_noee>true</_noee>
-						<_nouse>true</_nouse>
 
-						<!-- Change your public package here -->
+						<!-- KS requires non-empty Import-Package attribute T_T -->
+						<Import-Package>java.lang</Import-Package>
+						<DynamicImport-Package>*</DynamicImport-Package>
+
+						<!--
+							The Require-Capability attribute is unavailable in MANIFEST.MF when "_noee = true" and
+							the plugin installation to KS fails with the error of missing Require-Capability. I have no idea
+							why it happens, but it works when "_noee = false"  ̄\_(ツ)_/ ̄
+						-->
+						<_noee>false</_noee>
+						<_nouse>true</_nouse>
 						<Export-Package>com.katalon.plugin.jira*</Export-Package>
 					</instructions>
 				</configuration>

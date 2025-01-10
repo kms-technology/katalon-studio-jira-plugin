@@ -151,4 +151,18 @@ public class ComposerJiraIntegrationMessageConstant extends NLS {
     public static String ERROR_CUSTOM_FIELD_NOT_FOUND;
 
     public static String ERROR_GET_JIRA_ISSUE_WITH_WRONG_TEST_CASE_INDEX;
+
+    public static String BTN_LINK_JIRA_ISSUE_LABEL;
+
+    public static String BTN_EDIT_JIRA_ISSUE_LINK_LABEL;
+
+    public static String BTN_REMOVE_JIRA_ISSUE_LINK_LABEL;
+
+    public static String TXT_JIRA_ISSUE_KEY_PLACEHOLDER;
+
+    public static String BTN_OVERRIDE_TEST_CASE_DESCRIPTION_LABEL;
+
+    public static String LBL_LINKING_JIRA_ISSUE_TEXT;
+
+    public static String LBL_JIRA_ISSUE_NOT_EXISTING_TEXT;
 }

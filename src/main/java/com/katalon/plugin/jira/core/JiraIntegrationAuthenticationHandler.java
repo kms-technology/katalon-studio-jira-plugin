@@ -1,15 +1,5 @@
 package com.katalon.plugin.jira.core;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import org.apache.commons.lang3.StringUtils;
-import org.joda.time.DateTime;
-
 import com.atlassian.jira.rest.client.api.domain.Field;
 import com.atlassian.jira.rest.client.api.domain.User;
 import com.google.gson.Gson;
@@ -17,20 +7,24 @@ import com.google.gson.GsonBuilder;
 import com.katalon.platform.api.report.TestCaseRecord;
 import com.katalon.platform.api.report.TestSuiteRecord;
 import com.katalon.plugin.jira.core.constant.StringConstants;
-import com.katalon.plugin.jira.core.entity.ImprovedIssue;
-import com.katalon.plugin.jira.core.entity.JiraAttachment;
-import com.katalon.plugin.jira.core.entity.JiraField;
-import com.katalon.plugin.jira.core.entity.JiraFilter;
-import com.katalon.plugin.jira.core.entity.JiraIssue;
-import com.katalon.plugin.jira.core.entity.JiraIssueLink;
-import com.katalon.plugin.jira.core.entity.JiraIssueType;
-import com.katalon.plugin.jira.core.entity.JiraProject;
-import com.katalon.plugin.jira.core.entity.JiraTestResult;
+import com.katalon.plugin.jira.core.entity.*;
 import com.katalon.plugin.jira.core.issue.IssueMetaDataProvider;
 import com.katalon.plugin.jira.core.request.JiraIntegrationRequest;
+import com.katalon.plugin.jira.core.setting.JiraIntegrationSettingStore;
+import com.katalon.plugin.jira.core.setting.StoredJiraObject;
 import com.katalon.plugin.jira.core.util.ImprovedIssueDeserializer;
 import com.katalon.plugin.jira.core.util.JiraDateDeserializer;
 import com.katalon.plugin.jira.core.util.JsonUtil;
+import org.apache.commons.lang3.StringUtils;
+import org.joda.time.DateTime;
+
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 public class JiraIntegrationAuthenticationHandler extends JiraIntegrationRequest {
 
@@ -97,11 +91,31 @@ public class JiraIntegrationAuthenticationHandler extends JiraIntegrationRequest
         sendPostRequest(credential, JiraAPIURL.getIssueLinkUrl(credential), issueLink.toJson());
     }
 
-    public Optional<Field> getKatalonJiraServerCustomField(JiraCredential credential) throws JiraIntegrationException {
+    public Optional<Field> getKatalonCommentField(JiraCredential jiraCredential, JiraIntegrationSettingStore settingStore) throws IOException {
+        Optional<Field> retValue = Optional.empty();
+        try {
+            if (jiraCredential.isJiraCloud()) {
+                if (settingStore.isEnableFetchingContentFromJiraCloud()) {
+                    StoredJiraObject<JiraField> customField = settingStore.getStoredJiraCloudField();
+                    retValue = Optional.ofNullable(customField.getDefaultJiraObject());
+                }
+            }
+            else {
+                retValue = getKatalonJiraServerCustomField(jiraCredential);
+            }
+        } catch (JiraIntegrationException exception) {
+            exception.printStackTrace();
+        }
+
+        return retValue;
+    }
+
+    private Optional<Field> getKatalonJiraServerCustomField(JiraCredential credential) throws JiraIntegrationException {
         Field[] fields = getJiraArrayObjects(credential, JiraAPIURL.getFieldAPIUrl(credential), Field[].class);
         if (fields == null) {
             return Optional.empty();
         }
+
         return Arrays.asList(fields)
                 .stream()
                 .filter(field -> field.getSchema() != null

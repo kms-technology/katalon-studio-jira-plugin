@@ -1,8 +1,5 @@
 package com.katalon.plugin.jira.core;
 
-import java.util.Map;
-import java.util.Optional;
-
 import com.katalon.platform.api.controller.ReportController;
 import com.katalon.platform.api.controller.TestCaseController;
 import com.katalon.platform.api.exception.ResourceException;
@@ -11,13 +8,12 @@ import com.katalon.platform.api.model.Integration;
 import com.katalon.platform.api.model.ReportEntity;
 import com.katalon.platform.api.model.TestCaseEntity;
 import com.katalon.plugin.jira.core.constant.StringConstants;
-import com.katalon.plugin.jira.core.entity.JiraIntegratedIssue;
-import com.katalon.plugin.jira.core.entity.JiraIntegratedObject;
-import com.katalon.plugin.jira.core.entity.JiraIssue;
-import com.katalon.plugin.jira.core.entity.JiraIssueCollection;
-import com.katalon.plugin.jira.core.entity.JiraReport;
+import com.katalon.plugin.jira.core.entity.*;
 import com.katalon.plugin.jira.core.util.JsonUtil;
 import com.katalon.plugin.jira.core.util.PlatformUtil;
+
+import java.util.Map;
+import java.util.Optional;
 
 public class JiraObjectToEntityConverter {
     private static <T extends JiraIntegratedObject> Optional<T> getJiraObject(HasIntegration entity, Class<T> clazz) {
@@ -25,6 +21,7 @@ public class JiraObjectToEntityConverter {
         if (integratedEntity == null) {
             return Optional.empty();
         }
+
         return Optional.of((T) JsonUtil
                 .fromJson(integratedEntity.getProperties().get(StringConstants.INTEGRATED_VALUE_NAME), clazz));
     }
@@ -42,7 +39,17 @@ public class JiraObjectToEntityConverter {
                 .orElse(null);
     }
 
-    public static TestCaseEntity updateTestCase(JiraIssue issue, TestCaseEntity testCase)
+    public static TestCaseEntity updateTestCase(TestCaseEntity testCase, TestCaseController.UpdateDescription updateDescription)
+            throws JiraIntegrationException {
+        try {
+            return PlatformUtil.getPlatformController(TestCaseController.class)
+                    .updateTestCase(PlatformUtil.getCurrentProject(), testCase, updateDescription);
+        } catch (ResourceException e) {
+            throw new JiraIntegrationException(e);
+        }
+    }
+
+    public static TestCaseEntity updateTestCaseJiraIssueLink(JiraIssue issue, TestCaseEntity testCase)
             throws JiraIntegrationException {
         Integration jiraIntegratedEntity = new Integration() {
 
